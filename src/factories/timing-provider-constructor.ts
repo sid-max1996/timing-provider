@@ -44,6 +44,8 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
 
         private _error: null | Error;
 
+        private _isMain: boolean;
+
         private _onadjust: null | [TEventHandler<this>, TEventHandler<this>];
 
         private _onchange: null | [TEventHandler<this>, TEventHandler<this>];
@@ -68,11 +70,14 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
 
         private _vector: ITimingStateVector;
 
-        constructor(providerIdOrUrl: string) {
+        constructor(providerIdOrUrl: string, isMain: boolean) {
+            // tslint:disable-next-line:no-console
+            console.log('TImingProvider constructor url', providerIdOrUrl, 'isMain', isMain)
             super();
 
             const timestamp = performance.now() / 1000;
 
+            this._isMain = isMain
             this._endPosition = Number.POSITIVE_INFINITY;
             this._error = null;
             this._onadjust = null;
@@ -259,9 +264,16 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
             );
 
             this._updateRequestsSubject.pipe(withLatestFrom(currentlyActiveUpdateSubjects)).subscribe(([vector, activeUpdateSubjects]) => {
-                activeUpdateSubjects.forEach((activeUpdateSubject) =>
-                    activeUpdateSubject.send({ ...vector, timeOrigin: this._timeOrigin })
-                );
+                if (this._isMain) {
+                    activeUpdateSubjects.forEach((activeUpdateSubject) => {
+                        try {
+                            activeUpdateSubject.send({ ...vector, timeOrigin: this._timeOrigin })
+                        } catch (err) {
+                            // tslint:disable-next-line:no-console
+                            console.error('TImingProvider update send err', err)
+                        }
+                    });
+                }
 
                 this._setInternalVector(vector);
             });
@@ -299,7 +311,9 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
                 .subscribe(([{ acceleration, position, timeOrigin, timestamp: remoteTimestamp, velocity }, offset]) => {
                     const timestamp = remoteTimestamp - offset;
 
-                    if (this._timeOrigin < timeOrigin || (this._timeOrigin === timeOrigin && this._vector.timestamp > timestamp)) {
+                    // && this._timeOrigin < timeOrigin || (this._timeOrigin === timeOrigin && this._vector.timestamp > timestamp)
+
+                    if (this._isMain) {
                         const vector = translateTimingStateVector(this._vector, performance.now() / 1000 - this._vector.timestamp);
 
                         this._updateRequestsSubject.next(vector);

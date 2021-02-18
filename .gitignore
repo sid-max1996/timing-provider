@@ -1,3 +1,3 @@
 *.DS_Store
-build/
+build/es2019
 node_modules/
