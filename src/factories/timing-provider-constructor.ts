@@ -322,9 +322,6 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
                             catchError((err) => {
                                 // tslint:disable-next-line:no-console
                                 console.error('TimingProvider estimateOffset err', err);
-                                if (!this._isMain) {
-                                    this._doCloseError(err);
-                                }
 
                                 return EMPTY;
                             }),
