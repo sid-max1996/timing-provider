@@ -72,12 +72,12 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
 
         constructor(providerIdOrUrl: string, isMain: boolean) {
             // tslint:disable-next-line:no-console
-            console.log('TImingProvider constructor url', providerIdOrUrl, 'isMain', isMain)
+            console.log('TimingProvider constructor url', providerIdOrUrl, 'isMain', isMain);
             super();
 
             const timestamp = performance.now() / 1000;
 
-            this._isMain = isMain
+            this._isMain = isMain;
             this._endPosition = Number.POSITIVE_INFINITY;
             this._error = null;
             this._onadjust = null;
@@ -224,11 +224,11 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
                 from(online()).pipe(equals(true), first(), ignoreElements()),
                 defer(() => accept(url, subjectConfig))
             ).pipe(
-                retryBackoff({ initialInterval: 1000, maxRetries: 4 }),
+                retryBackoff({ initialInterval: 1000, maxRetries: 3 }),
                 catchError((err) => {
-                    this._error = err;
-                    this._readyState = 'closed';
-                    this.dispatchEvent(new ErrorEvent('error', { error: err }));
+                    // tslint:disable-next-line:no-console
+                    console.error('TimingProvider server connection err', err);
+                    this._doCloseError(err);
 
                     return EMPTY;
                 }),
@@ -267,10 +267,10 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
                 if (this._isMain) {
                     activeUpdateSubjects.forEach((activeUpdateSubject) => {
                         try {
-                            activeUpdateSubject.send({ ...vector, timeOrigin: this._timeOrigin })
+                            activeUpdateSubject.send({ ...vector, timeOrigin: this._timeOrigin });
                         } catch (err) {
                             // tslint:disable-next-line:no-console
-                            console.error('TImingProvider update send err', err)
+                            console.error('TimingProvider isMain update send err', err);
                         }
                     });
                 }
@@ -288,14 +288,30 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
                         );
 
                         if (index === 0) {
-                            requestSubject.send(undefined);
+                            try {
+                                requestSubject.send(undefined);
+                            } catch (err) {
+                                // tslint:disable-next-line:no-console
+                                console.error('TimingProvider request undefined err', err);
+                                if (!this._isMain) {
+                                    this._doCloseError(err);
+                                }
+                            }
                         }
 
                         return requestSubject.pipe(mapTo(updateSubject));
                     })
                 )
                 .subscribe((updatesSubject) => {
-                    updatesSubject.send({ ...this._vector, timeOrigin: this._timeOrigin });
+                    try {
+                        updatesSubject.send({ ...this._vector, timeOrigin: this._timeOrigin });
+                    } catch (err) {
+                        // tslint:disable-next-line:no-console
+                        console.error('TimingProvider request vector err', err);
+                        if (!this._isMain) {
+                            this._doCloseError(err);
+                        }
+                    }
                 });
 
             this._remoteUpdatesSubscription = updateSubjects
@@ -303,7 +319,15 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
                     withLatestFrom(dataChannelSubjects),
                     mergeMap(([updateSubject, dataChannelSubject]) =>
                         combineLatest([updateSubject, estimateOffset(dataChannelSubject)]).pipe(
-                            catchError(() => EMPTY),
+                            catchError((err) => {
+                                // tslint:disable-next-line:no-console
+                                console.error('TimingProvider estimateOffset err', err);
+                                if (!this._isMain) {
+                                    this._doCloseError(err);
+                                }
+
+                                return EMPTY;
+                            }),
                             distinctUntilChanged(([vectorA], [vectorB]) => vectorA === vectorB)
                         )
                     )
@@ -327,6 +351,13 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
                 });
 
             dataChannelSubjects.connect();
+        }
+
+        private _doCloseError(err: any): void {
+            this._error = err;
+            this._readyState = 'closed';
+            this.dispatchEvent(new Event('readystatechange'));
+            this.dispatchEvent(new ErrorEvent('error', { error: err }));
         }
 
         private _setInternalVector(vector: ITimingStateVector): void {
