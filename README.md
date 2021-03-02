@@ -1,4 +1,4 @@
-# timing-provider
+# cubic-timing-provider
 
 **An implementation of the timing provider specification.**
 

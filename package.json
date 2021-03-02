@@ -83,16 +83,14 @@
     ],
     "license": "MIT",
     "main": "build/es5/bundle.js",
-    "module": "build/es2019/module.js",
-    "name": "timing-provider",
+    "name": "cubic-timing-provider",
     "repository": {
         "type": "git",
-        "url": "https://github.com/chrisguttandin/timing-provider.git"
+        "url": "https://github.com/sid-max1996/timing-provider"
     },
     "scripts": {
         "prepublishOnly": "grunt build",
         "test": "grunt lint && grunt test"
     },
-    "types": "build/es2019/module.d.ts",
     "version": "4.3.18"
 }
