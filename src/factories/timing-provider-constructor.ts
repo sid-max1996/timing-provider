@@ -264,16 +264,16 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
             );
 
             this._updateRequestsSubject.pipe(withLatestFrom(currentlyActiveUpdateSubjects)).subscribe(([vector, activeUpdateSubjects]) => {
-                if (this._isMain) {
-                    activeUpdateSubjects.forEach((activeUpdateSubject) => {
-                        try {
-                            activeUpdateSubject.send({ ...vector, timeOrigin: this._timeOrigin });
-                        } catch (err) {
-                            // tslint:disable-next-line:no-console
-                            console.error('TimingProvider isMain update send err', err);
-                        }
-                    });
-                }
+                // tslint:disable-next-line:no-console
+                console.log('TimingProvider _updateRequestsSubject send');
+                activeUpdateSubjects.forEach((activeUpdateSubject) => {
+                    try {
+                        activeUpdateSubject.send({ ...vector, timeOrigin: this._timeOrigin });
+                    } catch (err) {
+                        // tslint:disable-next-line:no-console
+                        console.error('TimingProvider isMain update send err', err);
+                    }
+                });
 
                 this._setInternalVector(vector);
             });
