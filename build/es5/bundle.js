@@ -261,7 +261,9 @@
                 }
               });
 
-              _this3._setInternalVector(vector);
+              if (_this3._isMain) {
+                _this3._setInternalVector(vector);
+              }
             });
 
             this._remoteRequestsSubscription = updateSubjects.pipe(operators.withLatestFrom(dataChannelSubjects), operators.mergeMap(function (_ref3, index) {
