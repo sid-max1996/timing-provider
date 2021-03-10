@@ -64,8 +64,6 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
 
         private _startPosition: number;
 
-        private _timeOrigin: number;
-
         private _updateRequestsSubject: Subject<ITimingStateVector>;
 
         private _vector: ITimingStateVector;
@@ -89,7 +87,6 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
             this._remoteUpdatesSubscription = null;
             this._skew = 0;
             this._startPosition = Number.NEGATIVE_INFINITY;
-            this._timeOrigin = performance.timeOrigin / 1000 + timestamp;
             this._updateRequestsSubject = new Subject();
             this._vector = { acceleration: 0, position: 0, timestamp, velocity: 0 };
 
@@ -268,13 +265,12 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
                 console.log('TimingProvider _updateRequestsSubject send');
                 activeUpdateSubjects.forEach((activeUpdateSubject) => {
                     try {
-                        activeUpdateSubject.send({ ...vector, timeOrigin: this._timeOrigin });
+                        activeUpdateSubject.send({ ...vector, isMain: this._isMain });
                     } catch (err) {
                         // tslint:disable-next-line:no-console
                         console.error('TimingProvider isMain update send err', err);
                     }
                 });
-
                 this._setInternalVector(vector);
             });
 
@@ -304,7 +300,7 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
                 )
                 .subscribe((updatesSubject) => {
                     try {
-                        updatesSubject.send({ ...this._vector, timeOrigin: this._timeOrigin });
+                        updatesSubject.send({ ...this._vector, isMain: this._isMain });
                     } catch (err) {
                         // tslint:disable-next-line:no-console
                         console.error('TimingProvider request vector err', err);
@@ -329,20 +325,14 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
                         )
                     )
                 )
-                .subscribe(([{ acceleration, position, timeOrigin, timestamp: remoteTimestamp, velocity }, offset]) => {
+                .subscribe(([{ acceleration, position, isMain, timestamp: remoteTimestamp, velocity }, offset]) => {
                     const timestamp = remoteTimestamp - offset;
-
-                    // && this._timeOrigin < timeOrigin || (this._timeOrigin === timeOrigin && this._vector.timestamp > timestamp)
 
                     if (this._isMain) {
                         const vector = translateTimingStateVector(this._vector, performance.now() / 1000 - this._vector.timestamp);
 
                         this._updateRequestsSubject.next(vector);
-                    } else {
-                        if (this._timeOrigin > timeOrigin) {
-                            this._timeOrigin = timeOrigin;
-                        }
-
+                    } else if (isMain) {
                         this._setInternalVector({ acceleration, position, timestamp, velocity });
                     }
                 });
