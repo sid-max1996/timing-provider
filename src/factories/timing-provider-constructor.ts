@@ -271,7 +271,9 @@ export const createTimingProviderConstructor: TTimingProviderConstructorFactory 
                         console.error('TimingProvider isMain update send err', err);
                     }
                 });
-                this._setInternalVector(vector);
+                if (this._isMain) {
+                    this._setInternalVector(vector);
+                }
             });
 
             this._remoteRequestsSubscription = updateSubjects
